@@ -1,3 +1,44 @@
+## 🧠 Using n8n Workflows for AI Applications
+
+You can use n8n to build AI-powered workflows that interact with Ollama and other services. Here’s how you typically provide input and get output:
+
+### 1. Input Methods
+
+- **Manual Trigger:** Start the workflow manually in the n8n UI and provide input via UI fields or parameters.
+- **Webhook Trigger:** Expose an HTTP endpoint (Webhook node) that accepts POST requests. Send data (e.g., text, JSON) to this endpoint from your app, script, or another service.
+- **Schedule Trigger:** Run workflows on a schedule (e.g., every hour) to process data automatically.
+- **Other Triggers:** Use Email, File, or other trigger nodes to start workflows based on events.
+
+### 2. Processing with AI
+
+- Add an **Ollama node** or **HTTP Request node** to your workflow.
+- Pass the input (e.g., prompt, document, question) to the Ollama node or API endpoint.
+- Configure the node to use the desired model (e.g., `llama3`).
+
+### 3. Getting Output
+
+- The output from Ollama (AI response) is available as the output of the node.
+- You can:
+   - Return it directly via a Webhook Response node (for API-style workflows)
+   - Send it via Email, Slack, or other integrations
+   - Store it in a database or file
+   - Use it in further workflow steps (e.g., parsing, decision-making)
+
+### Example: Simple Webhook AI Chat
+
+1. Add a **Webhook** node (set to POST, e.g., `/ai-chat`).
+2. Add an **Ollama** node (or HTTP Request node to `http://ollama:11434/api/generate`).
+3. Map the incoming data (e.g., `{{$json["prompt"]}}`) to the Ollama node’s prompt field.
+4. Add a **Webhook Response** node to return the AI’s answer.
+
+**How it works:**
+- Send a POST request to `http://localhost:5678/webhook/ai-chat` with `{ "prompt": "Your question here" }`.
+- The workflow sends the prompt to Ollama, gets the response, and returns it to you.
+
+> [!NOTE]
+> You can trigger workflows from your app, scripts, or even the browser. n8n makes it easy to connect inputs and outputs to any service.
+
+For more, see the [n8n Webhook docs](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/) and [Ollama node docs](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-ollama/).
 # Self-hosted AI starter kit
 
 **Self-hosted AI Starter Kit** is an open-source Docker Compose template designed to swiftly initialize a comprehensive local AI and low-code development environment.
@@ -49,16 +90,84 @@ cp .env.example .env # you should update secrets and passwords inside
 
 #### For Nvidia GPU users
 
+
 ```bash
 git clone https://github.com/n8n-io/self-hosted-ai-starter-kit.git
 cd self-hosted-ai-starter-kit
 cp .env.example .env # you should update secrets and passwords inside
+# ---
+# If you have not used your Nvidia GPU with Docker before, you must install the NVIDIA Container Toolkit.
+#
+# With apt: Ubuntu, Debian (works for any Debian-derived distribution)
+#
+# 1. Install prerequisites:
+sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg2
+#
+# 2. Configure the production repository:
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+   && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+      sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+#
+# 3. (Optional) Enable experimental packages:
+sudo sed -i -e '/experimental/ s/^#//g' /etc/apt/sources.list.d/nvidia-container-toolkit.list
+#
+# 4. Update the package list:
+sudo apt-get update
+#
+# 5. Install the NVIDIA Container Toolkit packages:
+export NVIDIA_CONTAINER_TOOLKIT_VERSION=1.19.0-1
+sudo apt-get install -y \
+      nvidia-container-toolkit=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+      nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+      libnvidia-container-tools=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+      libnvidia-container1=${NVIDIA_CONTAINER_TOOLKIT_VERSION}
+#
+# 6. Restart Docker:
+sudo systemctl restart docker
+#
+# 7. Test GPU access in Docker:
+docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
+#
+# 8. Start the stack:
 docker compose --profile gpu-nvidia up
 ```
 
 > [!NOTE]
-> If you have not used your Nvidia GPU with Docker before, please follow the
-> [Ollama Docker instructions](https://github.com/ollama/ollama/blob/main/docs/docker.md).
+> If you have not used your Nvidia GPU with Docker before, you must follow the steps above to install the NVIDIA Container Toolkit. For more, see the [Ollama Docker instructions](https://hub.docker.com/r/ollama/ollama).
+
+## 🧩 Model Management
+
+### Managing Models in Ollama
+
+Ollama lets you add, remove, and list models using its CLI or API. Common commands:
+
+- **List models:**
+   ```bash
+   ollama list
+   ```
+- **Pull a model:**
+   ```bash
+   ollama pull llama3
+   ```
+- **Remove a model:**
+   ```bash
+   ollama rm llama3
+   ```
+- **More info:** See the [Ollama documentation](https://ollama.com/docs/models) for details on managing models, custom models, and advanced usage.
+
+### Using Models in n8n
+
+n8n connects to Ollama and lets you select which model to use in the Ollama node. To change the model:
+
+1. Open your workflow in n8n.
+2. Edit the Ollama node and set the "Model" field to the desired model name (e.g., `llama3`, `mistral`, etc.).
+3. Make sure the model is available in your Ollama instance (see above).
+
+For more, see the [n8n AI documentation](https://docs.n8n.io/advanced-ai/) and [Ollama node docs](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-ollama/).
 
 ### For AMD GPU users on Linux
 

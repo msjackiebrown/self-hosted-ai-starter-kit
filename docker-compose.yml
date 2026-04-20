@@ -21,9 +21,24 @@ x-n8n: &service-n8n
     - N8N_USER_MANAGEMENT_JWT_SECRET
     - OLLAMA_HOST=${OLLAMA_HOST:-ollama:11434}
   env_file:
-    - path: .env
-      required: true
+    - .env
 
+######################################################################
+# Ollama & n8n Interoperability Notes
+#
+# - Both n8n and Ollama are on the same Docker network ('demo'), so n8n can reach Ollama at http://ollama:11434
+# - To allow n8n (or your browser) to access the Ollama API, set OLLAMA_ORIGINS to the allowed origins (CORS)
+#   Example: OLLAMA_ORIGINS=http://n8n:5678,http://localhost:5678
+# - The 'ports' section exposes Ollama's API to your host at http://localhost:11434
+# - To pull models via API (from n8n or your host), use POST http://ollama:11434/api/pull
+#   Example n8n HTTP Request node:
+#     Method: POST
+#     URL: http://ollama:11434/api/pull
+#     Body: {"name": "llama3"}
+#     Content-Type: application/json
+#
+# For more info, see: https://ollama.com/docs/security#how-can-i-allow-additional-web-origins-to-access-ollama
+######################################################################
 x-ollama: &service-ollama
   image: ollama/ollama:latest
   container_name: ollama
@@ -33,6 +48,8 @@ x-ollama: &service-ollama
     - 11434:11434
   volumes:
     - ollama_storage:/root/.ollama
+  environment:
+    - OLLAMA_ORIGINS=http://n8n:5678,http://localhost:5678
 
 x-init-ollama: &init-ollama
   image: ollama/ollama:latest
@@ -73,7 +90,7 @@ services:
     command:
     - "-c"
     - |
-      if [ -z "$(n8n list:workflow --onlyId)" ]; then
+      if [ -z "$$(n8n list:workflow --onlyId)" ]; then
         n8n import:credentials --separate --input=/demo-data/credentials && \
         n8n import:workflow --separate --input=/demo-data/workflows
       else
@@ -84,6 +101,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
 
   n8n:
     <<: *service-n8n
